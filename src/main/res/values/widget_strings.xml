@@ -1,0 +1,5 @@
+<resources>
+    <string name="show_amounts">Show amounts</string>
+    <string name="hide_amounts">Hide amounts</string>
+    <string name="mask_widget_amounts">Hide widget amounts by default</string>
+</resources>

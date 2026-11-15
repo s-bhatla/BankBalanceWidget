@@ -1,0 +1,77 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tile" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center_vertical" android:padding="8dp" android:background="@drawable/tile">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/title" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:textColor="#BFE7D6" android:textSize="11sp"
+            android:includeFontPadding="false" android:maxLines="1" android:ellipsize="end"/>
+        <ImageButton android:id="@+id/privacy_button" android:layout_width="28dp" android:layout_height="26dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless" android:padding="4dp"
+            android:scaleType="fitCenter" android:src="@drawable/eye_show"
+            android:contentDescription="@string/show_amounts" android:visibility="gone"/>
+    </LinearLayout>
+    <FrameLayout android:id="@+id/header_rule" android:layout_width="match_parent"
+        android:layout_height="1dp" android:layout_marginTop="5dp"/>
+    <LinearLayout android:id="@+id/value_block" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:layout_marginTop="5dp">
+        <ImageView android:id="@+id/value" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:adjustViewBounds="true"
+            android:scaleType="centerInside" android:importantForAccessibility="yes"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/detail" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:layout_marginTop="6dp" android:visibility="gone">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/detail_label_0" android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content" android:text="Week" android:includeFontPadding="false"
+                android:textSize="12sp" android:maxLines="1" android:ellipsize="end"/>
+            <ImageView android:id="@+id/detail_value_0" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:adjustViewBounds="true"
+            android:scaleType="centerInside" android:importantForAccessibility="yes"/>
+        </LinearLayout>
+        <FrameLayout android:id="@+id/period_rule" android:layout_width="match_parent"
+            android:layout_height="1dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/detail_label_1" android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content" android:text="Month" android:includeFontPadding="false"
+                android:textSize="12sp" android:maxLines="1" android:ellipsize="end"/>
+            <ImageView android:id="@+id/detail_value_1" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:adjustViewBounds="true"
+            android:scaleType="centerInside" android:importantForAccessibility="yes"/>
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/metrics" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="12dp" android:visibility="gone">
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView android:id="@+id/metric_label_0" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Today" android:textSize="12sp" android:includeFontPadding="false"
+                android:maxLines="1" android:ellipsize="end"/>
+            <ImageView android:id="@+id/metric_value_0" android:layout_marginTop="4dp" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:adjustViewBounds="true"
+            android:scaleType="centerInside" android:importantForAccessibility="yes"/>
+        </LinearLayout>
+        <FrameLayout android:id="@+id/column_rule_1" android:layout_width="1dp" android:layout_height="match_parent" android:layout_marginStart="9dp" android:layout_marginEnd="9dp"/>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView android:id="@+id/metric_label_1" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Week" android:textSize="12sp" android:includeFontPadding="false"
+                android:maxLines="1" android:ellipsize="end"/>
+            <ImageView android:id="@+id/metric_value_1" android:layout_marginTop="4dp" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:adjustViewBounds="true"
+            android:scaleType="centerInside" android:importantForAccessibility="yes"/>
+        </LinearLayout>
+        <FrameLayout android:id="@+id/column_rule_2" android:layout_width="1dp" android:layout_height="match_parent" android:layout_marginStart="9dp" android:layout_marginEnd="9dp"/>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView android:id="@+id/metric_label_2" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Month" android:textSize="12sp" android:includeFontPadding="false"
+                android:maxLines="1" android:ellipsize="end"/>
+            <ImageView android:id="@+id/metric_value_2" android:layout_marginTop="4dp" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:adjustViewBounds="true"
+            android:scaleType="centerInside" android:importantForAccessibility="yes"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
