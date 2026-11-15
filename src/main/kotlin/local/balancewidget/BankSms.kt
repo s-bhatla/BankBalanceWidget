@@ -6,8 +6,8 @@ import java.util.Locale
 internal object BankSms {
     private const val MONEY = """([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?!\d|[,.]\d)"""
     private const val INR = """(?:INR|Rupees|Rs\.?|₹)\s*"""
-    private val account = pattern("""\b(?:A\s*/?\s*C(?:COUNT)?|Acct|Acc|Account)\s*(?:(?:no\.?|ending(?:\s+(?:in|with))?)\s*)?[:#-]?\s*[X*•]*\s*(\d{3,4})(?!\d)""")
-    private val balance = pattern("""\b(?:(?:avl\.?|avail\.?|available)\s*)?(?:bal\.?|balance)\s*[:=]?\s*""" + INR + "(-?$MONEY)")
+    private val account = pattern("""\b(?:A\s*/?\s*C(?:COUNT)?|Acct|Acc|Account)\s*(?:(?:no\.?|ending(?:\s+(?:in|with))?)\s*)?[:#-]?\s*(?:[X*•]+\s*\d{0,16}?)?(\d{3,4})(?!\d)""")
+    private val balance = pattern("""\b(?:(?:avl\.?|avail\.?|available)\s*)?(?:balance|bal\.?)\s*(?:is\s+)?[:=–-]?\s*""" + INR + "(-?$MONEY)")
     private val reference = pattern("""\b(?:UPI\s*)?(?:(?:Ref(?:erence)?(?:\s*No\.?|\s*ID)?|UTR|RRN)\s*[:#.-]?|UPI\s*:)\s*([A-Z0-9]{8,30})\b""")
     private val ignore = pattern("""\b(?:OTP|one.time password|failed|declined|pending|collect request|scheduled|will be debited)\b""")
     private val debits = amounts("(?:debited|spent|sent|withdrawn|paid)")
@@ -38,6 +38,16 @@ internal object BankSms {
         } catch (_: NumberFormatException) {
             null
         }
+    }
+
+    fun groupAmountInput(value: String): String {
+        val raw = value.replace(",", "")
+        val whole = raw.substringBefore('.')
+        val sign = if (whole.startsWith('-')) "-" else ""
+        val digits = whole.removePrefix("-")
+        if (digits.length <= 3 || digits.any { it !in '0'..'9' }) return raw
+        val prefix = digits.dropLast(3).reversed().chunked(2).joinToString(",").reversed()
+        return sign + prefix + "," + digits.takeLast(3) + raw.substring(whole.length)
     }
 
     fun paise(value: String): Long = BigDecimal(value.replace(",", "")).movePointRight(2).longValueExact()

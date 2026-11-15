@@ -61,6 +61,22 @@ class BankSmsTest {
         assertEquals(BankSms.Entry(-25000, null, null), BankSms.parse(sms, "7700"))
     }
 
+    @Test fun parsesIciciAvailableBalanceWithSeparatorAndLongMask() {
+        val sms = "ICICI Bank Acct XX98761234 debited for Rs 50.00. Available Balance is INR 1,250.00."
+        assertEquals("1234", BankSms.accountSuffix(sms))
+        assertEquals(BankSms.Entry(-5000, 125000, null), BankSms.parse(sms, "1234"))
+        val credit = "INR 250.00 credited to A/c XX1234. Avl Bal- INR 1,500.00."
+        assertEquals(BankSms.Entry(25000, 150000, null), BankSms.parse(credit, "1234"))
+    }
+
+    @Test fun groupsBalanceInputWithoutChangingPaise() {
+        assertEquals("12,34,567.89", BankSms.groupAmountInput("1234567.89"))
+        assertEquals("-1,234.", BankSms.groupAmountInput("-1234."))
+        assertEquals("1,234.00", BankSms.groupAmountInput("1,234.00"))
+        assertEquals("123", BankSms.groupAmountInput("123"))
+        assertEquals(123456789L, BankSms.paise(BankSms.groupAmountInput("1234567.89")))
+    }
+
     @Test fun ignoresUnsupportedOrAmbiguousAlerts() {
         for (sms in listOf(
             "OTP 777777 for A/c XX1234 debited by Rs.20",

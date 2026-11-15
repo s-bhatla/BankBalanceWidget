@@ -3,15 +3,22 @@ plugins {
     id 'org.jetbrains.kotlin.android' version '2.3.21'
 }
 
+def privacyPolicyUrl = providers.gradleProperty('privacyPolicyUrl').orElse('').get()
+if (privacyPolicyUrl && !(privacyPolicyUrl ==~ /https:\/\/[A-Za-z0-9][A-Za-z0-9.:\-]*(?:\/[A-Za-z0-9._~\/%\-]*)?/)) {
+    throw new GradleException('privacyPolicyUrl must be a public HTTPS URL')
+}
+
 android {
+    buildFeatures { buildConfig = true }
     namespace 'local.balancewidget'
     compileSdk 36
     defaultConfig {
         applicationId 'local.balancewidget'
         minSdk 26
         targetSdk 36
-        versionCode 10
-        versionName '0.7.1'
+        buildConfigField "String", "PRIVACY_POLICY_URL", '"' + privacyPolicyUrl + '"'
+        versionCode 16
+        versionName '0.9.0'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

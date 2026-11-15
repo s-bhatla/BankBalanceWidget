@@ -1,11 +1,19 @@
 package local.balancewidget
 
+import android.Manifest
 import android.app.PendingIntent
+import android.content.pm.PackageManager
+import android.util.Log
+import android.widget.Toast
+import java.text.DateFormat
+import java.util.Date
+import java.util.concurrent.Executors
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -34,6 +42,10 @@ abstract class Widgets : AppWidgetProvider() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == REFRESH_AMOUNTS) {
+            refreshFromInbox(context, intent)
+            return
+        }
         if (intent.action != TOGGLE_AMOUNTS) {
             super.onReceive(context, intent)
             return
@@ -48,6 +60,35 @@ abstract class Widgets : AppWidgetProvider() {
         render(context, manager, id, this is Spending)
     }
 
+    private fun refreshFromInbox(context: Context, intent: Intent) {
+        val manager = AppWidgetManager.getInstance(context)
+        val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+        if (manager.getAppWidgetInfo(id)?.provider != ComponentName(context, javaClass)) return
+        if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(context, "Open Bank Balance and allow inbox access to refresh.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val accountId = bindings(context).getLong(id.toString(), 1L)
+        val pending = goAsync()
+        refreshWorker.execute {
+            try {
+                Ledger(context).use { ledger ->
+                    val account = ledger.account(accountId) ?: return@execute
+                    val recovered = Inbox.refresh(context, ledger, account)
+                    refreshLog(context).edit().putLong(account.id.toString(), System.currentTimeMillis()).apply()
+                    refresh(context)
+                    showRefreshResult(context, if (recovered == 0) "Checked recent SMS. No updates."
+                        else "Recovered $recovered update(s) from SMS.")
+                }
+            } catch (failure: RuntimeException) {
+                Log.w("BankBalance", "Inbox refresh failed", failure)
+                showRefreshResult(context, "Could not refresh from SMS.")
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
     override fun onDeleted(context: Context, ids: IntArray) {
         bindings(context).edit().apply { ids.forEach { remove(it.toString()) } }.apply()
         privacy(context).edit().apply { ids.forEach { remove(revealKey(it)) } }.apply()
@@ -55,6 +96,22 @@ abstract class Widgets : AppWidgetProvider() {
 
     companion object {
         private const val TOGGLE_AMOUNTS = "local.balancewidget.TOGGLE_AMOUNTS"
+        private const val REFRESH_AMOUNTS = "local.balancewidget.REFRESH_AMOUNTS"
+        private val refreshWorker = Executors.newSingleThreadExecutor()
+
+        private fun refreshLog(context: Context) =
+            context.getSharedPreferences("account_refresh_log", Context.MODE_PRIVATE)
+
+        internal fun lastRefresh(context: Context, accountId: Long): String? =
+            refreshLog(context).getLong(accountId.toString(), 0L).takeIf { it > 0 }
+                ?.let { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it)) }
+
+        private fun showRefreshResult(context: Context, message: String) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
         private const val MASK_AMOUNTS = "mask_amounts"
 
         private fun privacy(context: Context) = context.getSharedPreferences("widget_privacy", Context.MODE_PRIVATE)
@@ -116,8 +173,8 @@ abstract class Widgets : AppWidgetProvider() {
             view.setContentDescription(id, if (value == "••••") "Amounts hidden" else value)
         }
 
-        private fun rupees(paise: Long, compact: Boolean): String {
-            val amount = BigDecimal.valueOf(paise, 2)
+        private fun rupees(paise: Long, compact: Boolean, wholeRupees: Boolean = false): String {
+            val amount = BigDecimal.valueOf(paise, 2).let { if (wholeRupees) it.setScale(0, java.math.RoundingMode.DOWN) else it }
             if (compact && amount.abs() >= BigDecimal(1000)) {
                 val units = when {
                     amount.abs() >= BigDecimal(10000000) -> 7 to "Cr"
@@ -125,10 +182,10 @@ abstract class Widgets : AppWidgetProvider() {
                     else -> 3 to "k"
                 }
                 return (if (paise < 0) "-" else "") + "₹" + amount.abs().movePointLeft(units.first)
-                    .setScale(1, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + units.second
+                    .setScale(if (wholeRupees) 0 else 1, if (wholeRupees) java.math.RoundingMode.DOWN else java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + units.second
             }
             return NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-IN")).apply {
-                minimumFractionDigits = if (paise % 100 == 0L) 0 else 2
+                minimumFractionDigits = if (wholeRupees || paise % 100 == 0L) 0 else 2
             }.format(amount)
         }
 
@@ -162,6 +219,7 @@ abstract class Widgets : AppWidgetProvider() {
             view.setViewPadding(R.id.tile, px, px, px, px)
             view.setInt(R.id.tile, "setBackgroundResource", backgrounds[palette.ordinal])
             view.setInt(R.id.privacy_button, "setColorFilter", palette.ink)
+            view.setInt(R.id.refresh_button, "setColorFilter", palette.ink)
             val ruleColor = (palette.muted and 0x00FFFFFF) or 0x55000000
             for (rule in intArrayOf(R.id.header_rule, R.id.period_rule, R.id.column_rule_1, R.id.column_rule_2)) {
                 view.setInt(rule, "setBackgroundColor", ruleColor)
@@ -179,8 +237,37 @@ abstract class Widgets : AppWidgetProvider() {
             val settings = privacy(context)
             val privacyEnabled = settings.getBoolean(MASK_AMOUNTS, false)
             val masked = privacyEnabled && !settings.getBoolean(revealKey(id), false)
+            if (Build.VERSION.SDK_INT >= 31) {
+                val buttonWidth = when {
+                    narrow && privacyEnabled -> 24f
+                    narrow -> 34f
+                    height >= 135 -> 48f
+                    else -> 42f
+                }
+                val buttonHeight = when {
+                    height < 56 -> 24f
+                    height >= 135 -> 48f
+                    else -> 32f
+                }
+                view.setViewLayoutWidth(R.id.refresh_button, buttonWidth, TypedValue.COMPLEX_UNIT_DIP)
+                view.setViewLayoutHeight(R.id.refresh_button, buttonHeight, TypedValue.COMPLEX_UNIT_DIP)
+                if (narrow) {
+                    view.setViewLayoutWidth(R.id.privacy_button, 24f, TypedValue.COMPLEX_UNIT_DIP)
+                }
+            }
             Ledger(context).use { ledger ->
                 val account = ledger.account(bindings(context).getLong(id.toString(), 1L))
+                if (account != null) {
+                    val provider = if (spending) Spending::class.java else Balance::class.java
+                    val refreshIntent = Intent(context, provider).setAction(REFRESH_AMOUNTS)
+                        .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                    view.setViewVisibility(R.id.refresh_button, View.VISIBLE)
+                    view.setOnClickPendingIntent(R.id.refresh_button, PendingIntent.getBroadcast(context, id,
+                        refreshIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+                    lastRefresh(context, account.id)?.let {
+                        view.setContentDescription(R.id.refresh_button, "Refresh from recent SMS. Last refresh: $it")
+                    }
+                }
                 if (account != null && privacyEnabled) {
                     val provider = if (spending) Spending::class.java else Balance::class.java
                     val intent = Intent(context, provider).setAction(TOGGLE_AMOUNTS)
@@ -204,7 +291,7 @@ abstract class Widgets : AppWidgetProvider() {
                     view.setTextViewText(R.id.title, if (estimatedLabel) "$title · Est." else title)
                     val compact = narrow || width / fontScale < 145
                     val amount = if (masked) "••••" else
-                        (if (account.reported || estimatedLabel) "" else "~") + rupees(account.balance, compact)
+                        (if (account.reported || estimatedLabel) "" else "~") + rupees(account.balance, compact, wholeRupees = width < 235)
                     renderAmount(context, view, R.id.value, amount, amountSize, width - 2 * margin, palette.ink)
                 } else {
                     val today = LocalDate.now()

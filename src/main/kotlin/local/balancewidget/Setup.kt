@@ -4,7 +4,9 @@ import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.appwidget.AppWidgetManager
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -14,7 +16,10 @@ import android.view.WindowInsetsController
 import android.os.Build
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.text.Editable
 import android.text.InputType
+import android.text.TextWatcher
+import android.text.method.DigitsKeyListener
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -97,19 +102,26 @@ class Setup : Activity() {
                 }
             }
         }
+        if (!configuring && accounts.any { Widgets.lastRefresh(this, it.id) != null }) {
+            heading("Last SMS refresh", 15f, 20)
+            for (account in accounts) {
+                Widgets.lastRefresh(this, account.id)?.let { copy(account.label + " · " + it) }
+            }
+        }
         heading("Bank alerts", 15f, 24)
         button("Scan recent SMS", primary = accounts.isEmpty()) {
             if (checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) scan()
-            else requestPermissions(arrayOf(Manifest.permission.READ_SMS), 1)
+            else requestSmsAccess(inbox = true)
         }
         if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) {
             button("Allow new SMS updates") {
-                requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), 2)
+                requestSmsAccess(inbox = false)
             }
         }
         copy("Scans up to 100 recent messages on this phone.")
         if (!configuring) {
             heading("Appearance", 15f, 28)
+            button("Privacy policy") { showPrivacyPolicy() }
             button("Color theme  ·  " + palette.title + "  ›") { pickPalette() }
             form.addView(Switch(this).apply {
                 text = getString(R.string.mask_widget_amounts)
@@ -127,6 +139,42 @@ class Setup : Activity() {
             }, row())
         }
     }
+
+    private fun requestSmsAccess(inbox: Boolean) {
+        val purpose = if (inbox) {
+            "Bank Balance reads up to 100 recent inbox messages when you scan or refresh. It uses matching bank alerts to find accounts and update balances and spending."
+        } else {
+            "Bank Balance checks incoming SMS in the background so matching bank alerts can update your balance and spending widgets."
+        }
+        AlertDialog.Builder(this)
+            .setTitle(if (inbox) "Read recent bank alerts?" else "Use new bank alerts?")
+            .setMessage(purpose + "\n\nSMS processing stays on this device. The app saves selected account details and transaction data locally. It does not upload messages or store full message text.")
+            .setNegativeButton("Not now", null)
+            .setPositiveButton("Continue") { _, _ ->
+                requestPermissions(
+                    arrayOf(if (inbox) Manifest.permission.READ_SMS else Manifest.permission.RECEIVE_SMS),
+                    if (inbox) 1 else 2
+                )
+            }
+            .show()
+    }
+
+    private fun showPrivacyPolicy() {
+        val url = BuildConfig.PRIVACY_POLICY_URL
+        if (url.isNotBlank()) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            } catch (_: ActivityNotFoundException) {
+                AlertDialog.Builder(this).setTitle("Privacy policy").setMessage(url)
+                    .setPositiveButton("Close", null).show()
+            }
+        } else {
+            AlertDialog.Builder(this).setTitle("Privacy")
+                .setMessage("Bank Balance processes transaction SMS on your device. It saves selected accounts and transaction details locally. You can revoke SMS permissions in Android settings and delete the app’s data from Android settings.")
+                .setPositiveButton("Close", null).show()
+        }
+    }
+
 
     private fun pickPalette() {
         val palettes = Palette.entries
@@ -227,8 +275,37 @@ class Setup : Activity() {
         onSkip: (() -> Unit)? = null, onSave: (Long) -> Unit) {
         val input = EditText(this).apply {
             hint = "Current balance (₹)"
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
-            balance?.let { setText(BigDecimal.valueOf(it, 2).toPlainString()) }
+            keyListener = DigitsKeyListener.getInstance("0123456789-,.")
+            setRawInputType(InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or
+                InputType.TYPE_NUMBER_FLAG_SIGNED)
+            balance?.let { setText(BankSms.groupAmountInput(BigDecimal.valueOf(it, 2).toPlainString())) }
+            addTextChangedListener(object : TextWatcher {
+                private var grouping = false
+
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+
+                override fun afterTextChanged(value: Editable) {
+                    if (grouping) return
+                    val original = value.toString()
+                    val formatted = BankSms.groupAmountInput(original)
+                    if (formatted == original) return
+                    val caret = selectionStart.coerceIn(0, original.length)
+                    val digitsBeforeCaret = original.take(caret).count { it != ',' }
+                    var position = 0
+                    var seen = 0
+                    while (position < formatted.length && seen < digitsBeforeCaret) {
+                        if (formatted[position++] != ',') seen++
+                    }
+                    grouping = true
+                    try {
+                        value.replace(0, value.length, formatted)
+                        setSelection(position.coerceAtMost(value.length))
+                    } finally {
+                        grouping = false
+                    }
+                }
+            })
         }
         val dialog = AlertDialog.Builder(this).setTitle(label).setMessage(message).setView(input)
             .setNegativeButton(if (onSkip == null) "Cancel" else "Skip") { _, _ -> onSkip?.invoke() }

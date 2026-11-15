@@ -6,6 +6,10 @@
         <TextView android:id="@+id/title" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:textColor="#BFE7D6" android:textSize="11sp"
             android:includeFontPadding="false" android:maxLines="1" android:ellipsize="end"/>
+        <ImageButton android:id="@+id/refresh_button" android:layout_width="42dp" android:layout_height="32dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless" android:padding="2dp"
+            android:scaleType="centerInside" android:src="@drawable/refresh"
+            android:contentDescription="@string/refresh_widget" android:visibility="gone"/>
         <ImageButton android:id="@+id/privacy_button" android:layout_width="28dp" android:layout_height="26dp"
             android:background="?android:attr/selectableItemBackgroundBorderless" android:padding="4dp"
             android:scaleType="fitCenter" android:src="@drawable/eye_show"

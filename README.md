@@ -14,6 +14,16 @@ See debits tracked since setup for today, this week, and this month. The balance
 
 SMS processing stays on your phone. No sign-in, internet permission, or cloud sync. Coverage depends on your bank's sender IDs and message format.
 
+## Install
+
+Download `BankBalanceWidget.apk` from [GitHub Releases](https://github.com/s-bhatla/BankBalanceWidget/releases/latest). Install it on an Android 8.0 or newer phone with USB debugging enabled:
+
+```sh
+adb install -r BankBalanceWidget.apk
+```
+
+Open Bank Balance, grant SMS access, scan for accounts, and add a widget from your launcher. The release APK is debug-signed so it can update earlier builds signed with the same key.
+
 ## Build
 
 Requires JDK 17, Gradle 8.13, Android SDK Platform 36, and Build Tools 35.0.0. Supports Android 8.0 and later.

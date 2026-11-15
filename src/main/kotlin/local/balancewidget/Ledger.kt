@@ -84,7 +84,7 @@ internal class Ledger(context: Context) : SQLiteOpenHelper(context, "ledger.db",
             arrayOf<Any>(balance, System.currentTimeMillis(), id))
     }
 
-    fun receive(sender: String, body: String, time: Long): Boolean {
+    fun receive(sender: String, body: String, time: Long, onlyAccount: Long? = null): Boolean {
         val suffix = BankSms.accountSuffix(body) ?: return false
         val entry = BankSms.parse(body, suffix) ?: return false
         val db = writableDatabase
@@ -94,7 +94,7 @@ internal class Ledger(context: Context) : SQLiteOpenHelper(context, "ledger.db",
                 arrayOf(Banks.key(sender), suffix)).use {
                 if (it.moveToFirst()) it.account() else return false
             }
-            if (time <= account.cutoff) return false
+            if (time <= account.cutoff || (onlyAccount != null && onlyAccount != account.id)) return false
             val key = entry.reference?.let { "ref:$it:${entry.change.compareTo(0L)}" }
                 ?: "sms:$time:${body.hashCode()}"
             val values = ContentValues().apply {
@@ -103,14 +103,28 @@ internal class Ledger(context: Context) : SQLiteOpenHelper(context, "ledger.db",
                 put("change", entry.change)
                 put("time", time)
             }
-            if (db.insertWithOnConflict("transactions", null, values, SQLiteDatabase.CONFLICT_IGNORE) == -1L) return false
+            val inserted = db.insertWithOnConflict("transactions", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+            val recordedTime = if (inserted) time else db.rawQuery(
+                "SELECT time FROM transactions WHERE account_id=? AND key=?",
+                arrayOf(account.id.toString(), key)
+            ).use { if (it.moveToFirst()) it.getLong(0) else return false }
+            val reported = entry.available?.takeIf { recordedTime > maxOf(account.cutoff, account.snapshot) }
+            if (!inserted && reported == null) return false
 
-            if (time > account.snapshot) {
-                val reported = entry.available?.takeIf { time >= account.latest }
-                val balance = reported ?: Math.addExact(account.balance, entry.change)
+            if (reported != null) {
+                // A delayed balance covers earlier activity. Keep transactions posted after it.
+                val later = db.rawQuery(
+                    "SELECT COALESCE(SUM(change),0) FROM transactions WHERE account_id=? AND time>?",
+                    arrayOf(account.id.toString(), recordedTime.toString())
+                ).use { it.moveToFirst(); it.getLong(0) }
+                val balance = Math.addExact(reported, later)
                 db.execSQL("UPDATE accounts SET balance=?,latest=?,reported=?,snapshot=? WHERE id=?",
-                    arrayOf<Any>(balance, maxOf(time, account.latest), if (reported != null) 1 else 0,
-                        if (reported != null) time else account.snapshot, account.id))
+                    arrayOf<Any>(balance, maxOf(recordedTime, account.latest),
+                        if (recordedTime >= account.latest) 1 else 0, recordedTime, account.id))
+            } else if (inserted && time > account.snapshot) {
+                val balance = Math.addExact(account.balance, entry.change)
+                db.execSQL("UPDATE accounts SET balance=?,latest=?,reported=0 WHERE id=?",
+                    arrayOf<Any>(balance, maxOf(time, account.latest), account.id))
             }
             db.setTransactionSuccessful()
             return true
