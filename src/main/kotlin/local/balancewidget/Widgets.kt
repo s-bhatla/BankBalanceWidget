@@ -233,7 +233,8 @@ abstract class Widgets : AppWidgetProvider() {
 
             view.setOnClickPendingIntent(R.id.tile, PendingIntent.getActivity(context, id,
                 Intent(context, Setup::class.java).putExtra("account_id", bindings(context).getLong(id.toString(), 1L)), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-            view.setTextViewText(R.id.title, if (spending) "Spent today" else "Balance")
+            val spendsLabel = context.getString(R.string.widget_spends)
+            view.setTextViewText(R.id.title, if (spending) spendsLabel else "Balance")
             val settings = privacy(context)
             val privacyEnabled = settings.getBoolean(MASK_AMOUNTS, false)
             val masked = privacyEnabled && !settings.getBoolean(revealKey(id), false)
@@ -288,7 +289,12 @@ abstract class Widgets : AppWidgetProvider() {
                     renderAmount(context, view, R.id.value, "Set up", 14f, width - 2 * margin, palette.ink)
                 } else if (masked || !spending) {
                     val estimatedLabel = !masked && !account.reported && width / fontScale >= 155
-                    view.setTextViewText(R.id.title, if (estimatedLabel) "$title · Est." else title)
+                    view.setTextViewText(R.id.title, when {
+                        spending && narrow -> spendsLabel
+                        spending -> "$spendsLabel · $title"
+                        estimatedLabel -> "$title · Est."
+                        else -> title
+                    })
                     val compact = narrow || width / fontScale < 145
                     val amount = if (masked) "••••" else
                         (if (account.reported || estimatedLabel) "" else "~") + rupees(account.balance, compact, wholeRupees = width < 235)
@@ -297,7 +303,11 @@ abstract class Widgets : AppWidgetProvider() {
                     val today = LocalDate.now()
                     val week = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                     val daily = ledger.spentSince(account.id, today)
-                    view.setTextViewText(R.id.title, if (narrow) "Today" else if (columns) "$title · Spending" else "$title · Today")
+                    view.setTextViewText(R.id.title, when {
+                        narrow -> "$spendsLabel · Today"
+                        columns -> "$spendsLabel · $title"
+                        else -> "$spendsLabel · $title · Today"
+                    })
                     if (columns || stacked) {
                         val weekly = ledger.spentSince(account.id, week)
                         val monthly = ledger.spentSince(account.id, today.withDayOfMonth(1))
