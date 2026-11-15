@@ -2,7 +2,7 @@
 
 **See your bank balance and spending without opening a banking app.**
 
-Bank Balance Widget turns Indian bank transaction SMS into home-screen widgets. Give each account its own balance or spending tile, choose a color theme, and tap the optional eye button to hide amounts.
+Bank Balance Widget turns Indian bank transaction SMS into home-screen widgets. Give each account its own balance or spending tile, choose a color theme, and pick a hidden-amount face in Appearance. With widget privacy enabled, tap an amount to reveal or hide it.
 
 ## How it works
 

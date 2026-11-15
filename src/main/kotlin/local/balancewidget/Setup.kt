@@ -121,8 +121,9 @@ class Setup : Activity() {
         copy("Scans up to 100 recent messages on this phone.")
         if (!configuring) {
             heading("Appearance", 15f, 28)
-            button("Privacy policy") { showPrivacyPolicy() }
             button("Color theme  ·  " + palette.title + "  ›") { pickPalette() }
+            val face = PrivacyFace.current(this)
+            button(getString(R.string.widget_privacy_face) + "  ·  " + face.symbol + "  ›") { pickPrivacyFace() }
             form.addView(Switch(this).apply {
                 text = getString(R.string.mask_widget_amounts)
                 textSize = 15f
@@ -137,6 +138,8 @@ class Setup : Activity() {
                 isChecked = Widgets.privacyEnabled(this@Setup)
                 setOnCheckedChangeListener { _, enabled -> Widgets.setPrivacyEnabled(this@Setup, enabled) }
             }, row())
+            heading("About", 15f, 24)
+            button("Privacy policy") { showPrivacyPolicy() }
         }
     }
 
@@ -175,6 +178,18 @@ class Setup : Activity() {
         }
     }
 
+
+    private fun pickPrivacyFace() {
+        val faces = PrivacyFace.entries
+        AlertDialog.Builder(this).setTitle(R.string.widget_privacy_face)
+            .setSingleChoiceItems(faces.map { it.symbol + "    " + it.label }.toTypedArray(),
+                faces.indexOf(PrivacyFace.current(this))) { dialog, index ->
+                PrivacyFace.save(this, faces[index])
+                dialog.dismiss()
+                showAccounts()
+            }
+            .setNegativeButton("Cancel", null).show()
+    }
 
     private fun pickPalette() {
         val palettes = Palette.entries

@@ -4,4 +4,5 @@
     <string name="mask_widget_amounts">Hide widget amounts by default</string>
     <string name="refresh_widget">Refresh from recent SMS</string>
     <string name="widget_spends">Spends</string>
+    <string name="widget_privacy_face">Hidden amount face</string>
 </resources>

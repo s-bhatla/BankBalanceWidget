@@ -150,10 +150,11 @@ abstract class Widgets : AppWidgetProvider() {
 
         private val backgrounds = intArrayOf(R.drawable.tile_palette_0, R.drawable.tile_palette_1, R.drawable.tile_palette_2, R.drawable.tile_palette_3, R.drawable.tile_palette_4, R.drawable.tile_palette_5, R.drawable.tile_palette_6, R.drawable.tile_palette_7)
         private val metricLabels = intArrayOf(R.id.metric_label_0, R.id.metric_label_1, R.id.metric_label_2)
+        private val metricBoxes = intArrayOf(R.id.metric_box_0, R.id.metric_box_1, R.id.metric_box_2)
         private val metricValues = intArrayOf(R.id.metric_value_0, R.id.metric_value_1, R.id.metric_value_2)
 
         private fun renderAmount(context: Context, view: RemoteViews, id: Int, value: String,
-            target: Float, availableDp: Int, color: Int) {
+            target: Float, availableDp: Int, color: Int, privacyAction: String? = null) {
             val display = context.resources.displayMetrics
             val width = (availableDp * display.density).toInt().coerceAtLeast(1)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
@@ -175,7 +176,8 @@ abstract class Widgets : AppWidgetProvider() {
                 canvas.drawText(line, 0f, index * lineHeight - metrics.ascent, paint)
             }
             view.setImageViewBitmap(id, bitmap)
-            view.setContentDescription(id, if (value == "••••") "Amounts hidden" else value)
+            val description = if (PrivacyFace.entries.any { it.symbol == value }) "Amount hidden" else value
+            view.setContentDescription(id, if (privacyAction == null) description else "$description. $privacyAction")
         }
 
         private fun rupees(paise: Long, compact: Boolean, wholeRupees: Boolean = false): String {
@@ -230,7 +232,6 @@ abstract class Widgets : AppWidgetProvider() {
             val px = (margin * context.resources.displayMetrics.density).toInt()
             view.setViewPadding(R.id.tile, px, px, px, px)
             view.setInt(R.id.tile, "setBackgroundResource", backgrounds[palette.ordinal])
-            view.setInt(R.id.privacy_button, "setColorFilter", palette.ink)
             view.setInt(R.id.refresh_button, "setColorFilter", palette.ink)
             val ruleColor = (palette.muted and 0x00FFFFFF) or 0x55000000
             for (rule in intArrayOf(R.id.header_rule, R.id.period_rule, R.id.column_rule_1, R.id.column_rule_2)) {
@@ -243,8 +244,10 @@ abstract class Widgets : AppWidgetProvider() {
             view.setViewVisibility(R.id.value_block, View.VISIBLE)
             view.setViewVisibility(R.id.detail, View.GONE)
 
-            view.setOnClickPendingIntent(R.id.tile, PendingIntent.getActivity(context, id,
-                Intent(context, Setup::class.java).putExtra("account_id", bindings(context).getLong(id.toString(), 1L)), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            val editIntent = PendingIntent.getActivity(context, id,
+                Intent(context, Setup::class.java).putExtra("account_id", bindings(context).getLong(id.toString(), 1L)),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            view.setOnClickPendingIntent(R.id.tile, editIntent)
             val spendsLabel = context.getString(R.string.widget_spends)
             view.setTextViewText(R.id.title, if (spending) spendingHeader(spendsLabel, null, palette) else "Balance")
             val settings = privacy(context)
@@ -252,7 +255,6 @@ abstract class Widgets : AppWidgetProvider() {
             val masked = privacyEnabled && !settings.getBoolean(revealKey(id), false)
             if (Build.VERSION.SDK_INT >= 31) {
                 val buttonWidth = when {
-                    narrow && privacyEnabled -> 24f
                     narrow -> 34f
                     height >= 135 -> 48f
                     else -> 42f
@@ -264,9 +266,6 @@ abstract class Widgets : AppWidgetProvider() {
                 }
                 view.setViewLayoutWidth(R.id.refresh_button, buttonWidth, TypedValue.COMPLEX_UNIT_DIP)
                 view.setViewLayoutHeight(R.id.refresh_button, buttonHeight, TypedValue.COMPLEX_UNIT_DIP)
-                if (narrow) {
-                    view.setViewLayoutWidth(R.id.privacy_button, 24f, TypedValue.COMPLEX_UNIT_DIP)
-                }
             }
             Ledger(context).use { ledger ->
                 val account = ledger.account(bindings(context).getLong(id.toString(), 1L))
@@ -281,19 +280,30 @@ abstract class Widgets : AppWidgetProvider() {
                         view.setContentDescription(R.id.refresh_button, "Refresh from recent SMS. Last refresh: $it")
                     }
                 }
-                if (account != null && privacyEnabled) {
+                val privacyAction = if (account != null && privacyEnabled) {
+                    context.getString(if (masked) R.string.show_amounts else R.string.hide_amounts)
+                } else null
+                val amountClick = if (privacyAction == null) editIntent else {
                     val provider = if (spending) Spending::class.java else Balance::class.java
                     val intent = Intent(context, provider).setAction(TOGGLE_AMOUNTS)
                         .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-                    view.setViewVisibility(R.id.privacy_button, View.VISIBLE)
-                    view.setImageViewResource(R.id.privacy_button, if (masked) R.drawable.eye_show else R.drawable.eye_hide)
-                    view.setContentDescription(R.id.privacy_button,
-                        context.getString(if (masked) R.string.show_amounts else R.string.hide_amounts))
-                    view.setOnClickPendingIntent(R.id.privacy_button, PendingIntent.getBroadcast(context, id, intent,
-                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-                } else {
-                    view.setViewVisibility(R.id.privacy_button, View.GONE)
+                    PendingIntent.getBroadcast(context, id, intent,
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
                 }
+                val surfaces = metricBoxes + intArrayOf(R.id.value_block, R.id.detail)
+                val amounts = metricValues + intArrayOf(R.id.value, R.id.detail_value_0, R.id.detail_value_1)
+                (surfaces + amounts).forEach { view.setOnClickPendingIntent(it, amountClick) }
+                val amountBackground = if (privacyAction != null && !masked) R.drawable.amount_inset else 0
+                val inset = if (privacyAction == null) 0 else (4 * context.resources.displayMetrics.density).toInt()
+                for (surface in surfaces) {
+                    view.setInt(surface, "setBackgroundResource", amountBackground)
+                    view.setViewPadding(surface, inset, 0, inset, 0)
+                }
+                val insetWidth = if (privacyAction != null) 8 else 0
+                val amountInk = if (masked) palette.muted else palette.ink
+                val hiddenFace = if (masked) PrivacyFace.current(context).symbol else null
+                fun amountText(paise: Long, compact: Boolean): String =
+                    hiddenFace ?: rupees(paise, compact)
                 val title = account?.let {
                     if (narrow) Banks.name(it.sender).substringBefore(" ") else it.label
                 }
@@ -302,42 +312,40 @@ abstract class Widgets : AppWidgetProvider() {
                 }
                 if (account == null) {
                     renderAmount(context, view, R.id.value, "Set up", 14f, width - 2 * margin, palette.ink)
-                } else if (masked || !spending) {
+                } else if (!spending) {
                     val estimatedLabel = !masked && !account.reported && width / fontScale >= 155
                     view.setTextViewText(R.id.title, when {
-                        spending && narrow -> spendingHeader(spendsLabel, null, palette)
-                        spending -> spendingHeader(spendsLabel, shortBank, palette)
                         estimatedLabel -> "$title · Est."
                         else -> title
                     })
                     val compact = narrow || width / fontScale < 145
-                    val amount = if (masked) "••••" else
+                    val amount = hiddenFace ?:
                         (if (account.reported || estimatedLabel) "" else "~") + rupees(account.balance, compact, wholeRupees = width < 235)
-                    renderAmount(context, view, R.id.value, amount, amountSize, width - 2 * margin, palette.ink)
+                    renderAmount(context, view, R.id.value, amount, amountSize, width - 2 * margin - insetWidth, amountInk, privacyAction)
                 } else {
                     val today = LocalDate.now()
                     val week = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                    val daily = ledger.spentSince(account.id, today)
+                    val daily = if (masked) 0L else ledger.spentSince(account.id, today)
                     view.setTextViewText(R.id.title, when {
                         narrow -> spendingHeader(spendsLabel, "Today", palette)
                         columns -> spendingHeader(spendsLabel, shortBank, palette)
                         else -> spendingHeader(spendsLabel, "$shortBank · Today", palette)
                     })
                     if (columns || stacked) {
-                        val weekly = ledger.spentSince(account.id, week)
-                        val monthly = ledger.spentSince(account.id, today.withDayOfMonth(1))
+                        val weekly = if (masked) 0L else ledger.spentSince(account.id, week)
+                        val monthly = if (masked) 0L else ledger.spentSince(account.id, today.withDayOfMonth(1))
                         if (columns) {
                             view.setViewVisibility(R.id.value_block, View.GONE)
                             view.setViewVisibility(R.id.metrics, View.VISIBLE)
-                            val slot = (width - 2 * margin - 38) / 3
+                            val slot = (width - 2 * margin - 38) / 3 - insetWidth
                             for ((index, amount) in listOf(daily, weekly, monthly).withIndex()) {
                                 val target = when {
                                     height >= 145 -> if (index == 0) 27f else 23f
                                     else -> if (index == 0) 23f else 20f
                                 }
                                 view.setTextColor(metricLabels[index], palette.muted)
-                                renderAmount(context, view, metricValues[index], rupees(amount, slot / fontScale < 90),
-                                    target, slot, palette.ink)
+                                renderAmount(context, view, metricValues[index], amountText(amount, slot / fontScale < 90),
+                                    target, slot, amountInk, privacyAction)
                             }
                         } else {
                             view.setViewVisibility(R.id.detail, View.VISIBLE)
@@ -346,15 +354,15 @@ abstract class Widgets : AppWidgetProvider() {
                             view.setTextColor(R.id.detail_label_1, palette.muted)
                             val detailSize = if (height >= 145) 15f else 13f
                             val detailWidth = (width - 2 * margin) * 3 / 5
-                            renderAmount(context, view, R.id.detail_value_0, rupees(weekly, compact),
-                                detailSize, detailWidth, palette.ink)
-                            renderAmount(context, view, R.id.detail_value_1, rupees(monthly, compact),
-                                detailSize, detailWidth, palette.ink)
+                            renderAmount(context, view, R.id.detail_value_0, amountText(weekly, compact),
+                                detailSize, detailWidth, amountInk, privacyAction)
+                            renderAmount(context, view, R.id.detail_value_1, amountText(monthly, compact),
+                                detailSize, detailWidth, amountInk, privacyAction)
                         }
                     }
                     if (!columns) {
-                        renderAmount(context, view, R.id.value, rupees(daily, narrow || width / fontScale < 145),
-                            if (stacked) minOf(amountSize, if (height >= 145) 30f else 24f) else minOf(amountSize, 33f), width - 2 * margin, palette.ink)
+                        renderAmount(context, view, R.id.value, amountText(daily, narrow || width / fontScale < 145),
+                            if (stacked) minOf(amountSize, if (height >= 145) 30f else 24f) else minOf(amountSize, 33f), width - 2 * margin - insetWidth, amountInk, privacyAction)
                     }
                 }
 
