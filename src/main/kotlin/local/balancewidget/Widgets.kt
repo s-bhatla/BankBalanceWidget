@@ -18,6 +18,11 @@ import android.os.Bundle
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import kotlin.math.ceil
 import android.util.TypedValue
 import android.view.View
@@ -189,6 +194,13 @@ abstract class Widgets : AppWidgetProvider() {
             }.format(amount)
         }
 
+        private fun spendingHeader(label: String, detail: String?, palette: Palette): CharSequence {
+            val text = SpannableString(if (detail == null) label else "$label · $detail")
+            text.setSpan(StyleSpan(Typeface.BOLD), 0, label.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            text.setSpan(ForegroundColorSpan(palette.ink), 0, label.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            return text
+        }
+
         @Synchronized
         private fun render(context: Context, manager: AppWidgetManager, id: Int, spending: Boolean) {
             val view = RemoteViews(context.packageName, R.layout.widget)
@@ -234,7 +246,7 @@ abstract class Widgets : AppWidgetProvider() {
             view.setOnClickPendingIntent(R.id.tile, PendingIntent.getActivity(context, id,
                 Intent(context, Setup::class.java).putExtra("account_id", bindings(context).getLong(id.toString(), 1L)), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
             val spendsLabel = context.getString(R.string.widget_spends)
-            view.setTextViewText(R.id.title, if (spending) spendsLabel else "Balance")
+            view.setTextViewText(R.id.title, if (spending) spendingHeader(spendsLabel, null, palette) else "Balance")
             val settings = privacy(context)
             val privacyEnabled = settings.getBoolean(MASK_AMOUNTS, false)
             val masked = privacyEnabled && !settings.getBoolean(revealKey(id), false)
@@ -285,13 +297,16 @@ abstract class Widgets : AppWidgetProvider() {
                 val title = account?.let {
                     if (narrow) Banks.name(it.sender).substringBefore(" ") else it.label
                 }
+                val shortBank = account?.let {
+                    Banks.name(it.sender).removeSuffix(" Bank").substringBefore(' ') + " " + it.suffix
+                }
                 if (account == null) {
                     renderAmount(context, view, R.id.value, "Set up", 14f, width - 2 * margin, palette.ink)
                 } else if (masked || !spending) {
                     val estimatedLabel = !masked && !account.reported && width / fontScale >= 155
                     view.setTextViewText(R.id.title, when {
-                        spending && narrow -> spendsLabel
-                        spending -> "$spendsLabel · $title"
+                        spending && narrow -> spendingHeader(spendsLabel, null, palette)
+                        spending -> spendingHeader(spendsLabel, shortBank, palette)
                         estimatedLabel -> "$title · Est."
                         else -> title
                     })
@@ -304,9 +319,9 @@ abstract class Widgets : AppWidgetProvider() {
                     val week = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                     val daily = ledger.spentSince(account.id, today)
                     view.setTextViewText(R.id.title, when {
-                        narrow -> "$spendsLabel · Today"
-                        columns -> "$spendsLabel · $title"
-                        else -> "$spendsLabel · $title · Today"
+                        narrow -> spendingHeader(spendsLabel, "Today", palette)
+                        columns -> spendingHeader(spendsLabel, shortBank, palette)
+                        else -> spendingHeader(spendsLabel, "$shortBank · Today", palette)
                     })
                     if (columns || stacked) {
                         val weekly = ledger.spentSince(account.id, week)
