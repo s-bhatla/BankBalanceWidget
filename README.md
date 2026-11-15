@@ -4,6 +4,12 @@
 
 Bank Balance Widget turns Indian bank transaction SMS into home-screen widgets. Give each account its own balance or spending tile, choose a color theme, and pick a hidden-amount face in Appearance. With widget privacy enabled, tap an amount to reveal or hide it.
 
+![Bank Balance preview showing the balance and spending widgets with sample amounts](docs/images/widget-preview.png)
+
+## Widget colors
+
+![Eight Bank Balance themes in IBM Plex Mono with sample balances](docs/images/widget-colors.png)
+
 ## How it works
 
 1. Scan up to 100 recent messages to find supported bank accounts.
