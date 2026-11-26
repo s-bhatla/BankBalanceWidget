@@ -64,7 +64,7 @@ internal object BankSms {
                 else -> 3 to "k"
             }
             return (if (paise < 0) "-" else "") + "₹" + magnitude.movePointLeft(shift)
-                .setScale(1, RoundingMode.DOWN).stripTrailingZeros().toPlainString() + unit
+                .setScale(2, RoundingMode.DOWN).stripTrailingZeros().toPlainString() + unit
         }
         return NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-IN")).apply {
             minimumFractionDigits = if (wholeRupees || paise % 100 == 0L) 0 else 2

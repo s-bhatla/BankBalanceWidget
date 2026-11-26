@@ -77,15 +77,17 @@ class BankSmsTest {
         assertEquals(123456789L, BankSms.paise(BankSms.groupAmountInput("1234567.89")))
     }
 
-    @Test fun compactAmountsKeepOneDecimalRoundedDown() {
+    @Test fun compactAmountsKeepTwoDecimalsRoundedDown() {
         for (wholeRupees in listOf(true, false)) {
-            assertEquals("₹11.5k", BankSms.rupees(1159999, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹11.59k", BankSms.rupees(1159999, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹11.76k", BankSms.rupees(1176000, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹11.7k", BankSms.rupees(1170000, compact = true, wholeRupees = wholeRupees))
             assertEquals("₹11k", BankSms.rupees(1100000, compact = true, wholeRupees = wholeRupees))
-            assertEquals("₹99.9k", BankSms.rupees(9999999, compact = true, wholeRupees = wholeRupees))
-            assertEquals("₹1.2L", BankSms.rupees(12999900, compact = true, wholeRupees = wholeRupees))
-            assertEquals("₹99.9L", BankSms.rupees(999999999, compact = true, wholeRupees = wholeRupees))
-            assertEquals("₹1.9Cr", BankSms.rupees(1999999900, compact = true, wholeRupees = wholeRupees))
-            assertEquals("-₹11.5k", BankSms.rupees(-1159999, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹99.99k", BankSms.rupees(9999999, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹1.29L", BankSms.rupees(12999900, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹99.99L", BankSms.rupees(999999999, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹1.99Cr", BankSms.rupees(1999999900, compact = true, wholeRupees = wholeRupees))
+            assertEquals("-₹11.59k", BankSms.rupees(-1159999, compact = true, wholeRupees = wholeRupees))
         }
     }
 
