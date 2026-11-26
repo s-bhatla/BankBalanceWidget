@@ -5,8 +5,8 @@ internal object Banks {
 
     // Exact transaction headers. Keep unknown headers independent.
     private val banks = listOf(
-        Bank("HDFC Bank", listOf("HDFCBK", "HDFCBN")),
-        Bank("SBI", listOf("SBIINB", "SBIUPI", "SBIBNK", "SBIPSG", "SBYONO")),
+        Bank("HDFC Bank", listOf("HDFCBK", "HDFCBN", "HDFCCC")),
+        Bank("SBI", listOf("SBIINB", "SBICRD", "SBIUPI", "SBIBNK", "SBIPSG", "SBYONO")),
         Bank("ICICI Bank", listOf("ICICIB", "ICICIBK", "ICICIT")),
         Bank("Axis Bank", listOf("AXISBK", "AXISBN")),
         Bank("Kotak Mahindra Bank", listOf("KOTAKB", "KMBLNK")),
@@ -27,6 +27,8 @@ internal object Banks {
         Bank("RBL Bank", listOf("RBLBNK"))
     )
     private val bySender = banks.flatMap { bank -> bank.senders.map { it to bank } }.toMap()
+
+    fun known(address: String): Boolean = bySender.containsKey(BankSms.senderId(address))
 
     fun key(address: String): String {
         val sender = BankSms.senderId(address)

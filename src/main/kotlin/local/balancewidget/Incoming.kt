@@ -21,7 +21,11 @@ class Incoming : BroadcastReceiver() {
         worker.execute {
             try {
                 Ledger(context).use {
-                    if (it.receive(sender, body.toString(), first.timestampMillis)) Widgets.refresh(context)
+                    val bankChanged = it.receive(sender, body.toString(), first.timestampMillis)
+                    val cardChanged = Cards(context).use { cards ->
+                        cards.receive(sender, body.toString(), first.timestampMillis)
+                    }
+                    if (bankChanged || cardChanged) Widgets.refresh(context)
                 }
             } finally {
                 pending.finish()

@@ -17,8 +17,8 @@ android {
         minSdk 26
         targetSdk 36
         buildConfigField "String", "PRIVACY_POLICY_URL", '"' + privacyPolicyUrl + '"'
-        versionCode 22
-        versionName '0.9.6'
+        versionCode 25
+        versionName '0.10.3'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

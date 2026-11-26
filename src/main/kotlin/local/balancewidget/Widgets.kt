@@ -123,6 +123,7 @@ abstract class Widgets : AppWidgetProvider() {
 
         internal fun setPrivacyEnabled(context: Context, enabled: Boolean) {
             privacy(context).edit().clear().putBoolean(MASK_AMOUNTS, enabled).apply()
+            CardWidget.resetPrivacy(context)
             refresh(context)
         }
 
@@ -137,6 +138,7 @@ abstract class Widgets : AppWidgetProvider() {
         }
 
         internal fun refresh(context: Context) {
+            CardWidget.refresh(context)
             val manager = AppWidgetManager.getInstance(context)
             for (type in listOf(Balance::class.java, Spending::class.java)) {
                 manager.getAppWidgetIds(ComponentName(context, type)).forEach {
@@ -150,7 +152,7 @@ abstract class Widgets : AppWidgetProvider() {
         private val metricBoxes = intArrayOf(R.id.metric_box_0, R.id.metric_box_1, R.id.metric_box_2)
         private val metricValues = intArrayOf(R.id.metric_value_0, R.id.metric_value_1, R.id.metric_value_2)
 
-        private fun renderAmount(context: Context, view: RemoteViews, id: Int, value: String,
+        internal fun renderAmount(context: Context, view: RemoteViews, id: Int, value: String,
             target: Float, availableDp: Int, color: Int, privacyAction: String? = null) {
             val display = context.resources.displayMetrics
             val width = (availableDp * display.density).toInt().coerceAtLeast(1)

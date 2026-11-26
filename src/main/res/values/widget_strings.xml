@@ -5,4 +5,7 @@
     <string name="refresh_widget">Refresh from recent SMS</string>
     <string name="widget_spends">Spends</string>
     <string name="widget_privacy_face">Hidden amount face</string>
+    <string name="card_outstanding_label">Outstanding</string>
+    <string name="card_bill_label">Last bill</string>
+    <string name="card_due_label">Due date</string>
 </resources>

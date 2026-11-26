@@ -20,6 +20,16 @@ See debits tracked since setup for today, this week, and this month. The balance
 
 SMS processing stays on your phone. No sign-in, internet permission, or cloud sync. Coverage depends on your bank's sender IDs and message format.
 
+## Credit cards
+
+Open **Credit cards**, scan recent SMS, and select a detected card. Set its current outstanding once from your bank app. Add a **Credit card balance** widget to see that running estimate alongside the latest statement amount and due date.
+
+Supported purchase SMS increase the estimate. Confirmed payments, refunds and reversals reduce it. Refresh scans the latest 100 inbox messages and deduplicates accepted transactions. The statement bill stays separate and updates only from bill alerts. Missed or unsupported messages can cause drift; tap the header to correct the outstanding.
+
+Cards can be detected from purchase alerts before the first statement. Historical messages before the starting balance do not change it. The initial parser supports explicit currency amounts and four visible card-ending digits. Unknown or ambiguous messages are skipped.
+
+Public reference formats include [ActSMS bill examples](https://github.com/carthworks/ActSMS) and [open SMS parsing rules](https://gist.github.com/vs4vijay/925ebb800407535ad412982033771faa). Bank documentation explains [ICICI total and minimum dues](https://www.icici.bank.in/personal-banking/blogs/card/credit-card/how-to-check-your-credit-card-balance-and-due-amount) and [HDFC statement and due dates](https://www.hdfc.bank.in/blogs/credit-cards/how-to-understand-credit-card-statement). Parser tests use synthetic messages written for this project.
+
 ## Install
 
 Download `BankBalanceWidget.apk` from [GitHub Releases](https://github.com/s-bhatla/BankBalanceWidget/releases/latest). Install it on an Android 8.0 or newer phone with USB debugging enabled:

@@ -108,6 +108,10 @@ class Setup : Activity() {
                 Widgets.lastRefresh(this, account.id)?.let { copy(account.label + " · " + it) }
             }
         }
+        if (!configuring) {
+            heading("Credit cards", 15f, 24)
+            button("Credit cards  ›") { startActivity(Intent(this,CardSetup::class.java)) }
+        }
         heading("Bank alerts", 15f, 24)
         button("Scan recent SMS", primary = accounts.isEmpty()) {
             if (checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) scan()
