@@ -27,12 +27,9 @@ import kotlin.math.ceil
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
-import java.math.BigDecimal
-import java.text.NumberFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
-import java.util.Locale
 
 abstract class Widgets : AppWidgetProvider() {
     class Balance : Widgets()
@@ -180,22 +177,6 @@ abstract class Widgets : AppWidgetProvider() {
             view.setContentDescription(id, if (privacyAction == null) description else "$description. $privacyAction")
         }
 
-        private fun rupees(paise: Long, compact: Boolean, wholeRupees: Boolean = false): String {
-            val amount = BigDecimal.valueOf(paise, 2).let { if (wholeRupees) it.setScale(0, java.math.RoundingMode.DOWN) else it }
-            if (compact && amount.abs() >= BigDecimal(1000)) {
-                val units = when {
-                    amount.abs() >= BigDecimal(10000000) -> 7 to "Cr"
-                    amount.abs() >= BigDecimal(100000) -> 5 to "L"
-                    else -> 3 to "k"
-                }
-                return (if (paise < 0) "-" else "") + "₹" + amount.abs().movePointLeft(units.first)
-                    .setScale(if (wholeRupees) 0 else 1, if (wholeRupees) java.math.RoundingMode.DOWN else java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + units.second
-            }
-            return NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-IN")).apply {
-                minimumFractionDigits = if (wholeRupees || paise % 100 == 0L) 0 else 2
-            }.format(amount)
-        }
-
         private fun spendingHeader(label: String, detail: String?, palette: Palette): CharSequence {
             val text = SpannableString(if (detail == null) label else "$label · $detail")
             text.setSpan(StyleSpan(Typeface.BOLD), 0, label.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -303,7 +284,7 @@ abstract class Widgets : AppWidgetProvider() {
                 val amountInk = if (masked) palette.muted else palette.ink
                 val hiddenFace = if (masked) PrivacyFace.current(context).symbol else null
                 fun amountText(paise: Long, compact: Boolean): String =
-                    hiddenFace ?: rupees(paise, compact)
+                    hiddenFace ?: BankSms.rupees(paise, compact)
                 val title = account?.let {
                     if (narrow) Banks.name(it.sender).substringBefore(" ") else it.label
                 }
@@ -320,7 +301,7 @@ abstract class Widgets : AppWidgetProvider() {
                     })
                     val compact = narrow || width / fontScale < 145
                     val amount = hiddenFace ?:
-                        (if (account.reported || estimatedLabel) "" else "~") + rupees(account.balance, compact, wholeRupees = width < 235)
+                        (if (account.reported || estimatedLabel) "" else "~") + BankSms.rupees(account.balance, compact, wholeRupees = width < 235)
                     renderAmount(context, view, R.id.value, amount, amountSize, width - 2 * margin - insetWidth, amountInk, privacyAction)
                 } else {
                     val today = LocalDate.now()

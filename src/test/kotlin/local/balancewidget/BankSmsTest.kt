@@ -77,6 +77,18 @@ class BankSmsTest {
         assertEquals(123456789L, BankSms.paise(BankSms.groupAmountInput("1234567.89")))
     }
 
+    @Test fun compactAmountsKeepOneDecimalRoundedDown() {
+        for (wholeRupees in listOf(true, false)) {
+            assertEquals("₹11.5k", BankSms.rupees(1159999, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹11k", BankSms.rupees(1100000, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹99.9k", BankSms.rupees(9999999, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹1.2L", BankSms.rupees(12999900, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹99.9L", BankSms.rupees(999999999, compact = true, wholeRupees = wholeRupees))
+            assertEquals("₹1.9Cr", BankSms.rupees(1999999900, compact = true, wholeRupees = wholeRupees))
+            assertEquals("-₹11.5k", BankSms.rupees(-1159999, compact = true, wholeRupees = wholeRupees))
+        }
+    }
+
     @Test fun ignoresUnsupportedOrAmbiguousAlerts() {
         for (sms in listOf(
             "OTP 777777 for A/c XX1234 debited by Rs.20",

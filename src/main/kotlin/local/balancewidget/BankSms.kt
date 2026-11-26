@@ -1,6 +1,8 @@
 package local.balancewidget
 
 import java.math.BigDecimal
+import java.math.RoundingMode
+import java.text.NumberFormat
 import java.util.Locale
 
 internal object BankSms {
@@ -51,6 +53,23 @@ internal object BankSms {
     }
 
     fun paise(value: String): Long = BigDecimal(value.replace(",", "")).movePointRight(2).longValueExact()
+
+    fun rupees(paise: Long, compact: Boolean, wholeRupees: Boolean = false): String {
+        val amount = BigDecimal.valueOf(paise, 2)
+        val magnitude = amount.abs()
+        if (compact && magnitude >= BigDecimal(1000)) {
+            val (shift, unit) = when {
+                magnitude >= BigDecimal(10000000) -> 7 to "Cr"
+                magnitude >= BigDecimal(100000) -> 5 to "L"
+                else -> 3 to "k"
+            }
+            return (if (paise < 0) "-" else "") + "₹" + magnitude.movePointLeft(shift)
+                .setScale(1, RoundingMode.DOWN).stripTrailingZeros().toPlainString() + unit
+        }
+        return NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-IN")).apply {
+            minimumFractionDigits = if (wholeRupees || paise % 100 == 0L) 0 else 2
+        }.format(if (wholeRupees) amount.setScale(0, RoundingMode.DOWN) else amount)
+    }
 
     private fun findAmount(patterns: List<Regex>, sms: String): Long? {
         val candidates = patterns.flatMap { regex ->
